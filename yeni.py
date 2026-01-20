@@ -1,73 +1,63 @@
 import streamlit as st
+import streamlit.components.v1 as components
 
-# Sayfa Ayarları
-st.set_page_config(page_title="SİSTEM GÜVENLİK UYARISI", layout="centered")
+# Sayfa ayarlarını gizle
+st.set_page_config(page_title="SİSTEM ONARIM", layout="centered")
 
-# CSS ve JavaScript Entegrasyonu (Tam Ekran ve Ani Ses İçin)
-st.markdown("""
-    <style>
-    /* Arka planı siyah ve profesyonel yapalım */
-    .main { background-color: #111; color: white; text-align: center; }
-    .stButton>button { 
-        width: 100%; height: 150px; font-size: 30px; 
-        background-color: #d32f2f; color: white; border-radius: 10px;
-        font-weight: bold; border: 5px solid white;
-    }
-    #jumpscare-overlay {
-        display: none;
-        position: fixed;
-        top: 0; left: 0;
-        width: 100vw; height: 100vh;
-        background-color: black;
-        z-index: 9999;
-        justify-content: center;
-        align-items: center;
-    }
-    #jumpscare-img { width: 100%; height: 100%; object-fit: cover; }
-    </style>
+# Başlık ve Açıklama
+st.markdown("<h1 style='color:red; text-align:center;'>⚠️ DİKKAT: TRİGONOMETRİ-2.EXE ÇALIŞMAYI DURDURDU</h1>", unsafe_allow_html=True)
+st.write("Cihazınızın işlemcisi aşırı ısındı. Soğutma işlemini başlatmak için aşağıdaki butona 3 kez hızlıca dokunun.")
 
-    <div id="jumpscare-overlay">
-        <img id="jumpscare-img" src="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3N5bm9scXNyeWJ0bmZnbWJueG5ieG5ieG5ieG5ieG5ieG5ieG5ieCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o7TKsWpY8j8oYpTJC/giphy.gif">
+# Jumpscare Mekanizması (HTML/JS/CSS Hepsi Bir Arada)
+jumpscare_code = """
+<div id="wrapper">
+    <button id="scare-btn">SİSTEMİ SOĞUT VE ONAR</button>
+    <div id="scare-overlay">
+        <img id="scare-img" src="https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3N5bm9scXNyeWJ0bmZnbWJueG5ieG5ieG5ieG5ieG5ieG5ieG5ieCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o7TKsWpY8j8oYpTJC/giphy.gif">
     </div>
+</div>
 
-    <audio id="scream-audio" preload="auto">
-        <source src="https://www.soundboard.com/handler/DownLoadTrack.ashx?cliptitle=Scream&filename=22/227575-f71694f4-5f4b-4433-8b7c-3f5f3e7e8b8a.mp3" type="audio/mp3">
-    </audio>
+<audio id="scream">
+    <source src="https://www.soundboard.com/handler/DownLoadTrack.ashx?cliptitle=Scream&filename=22/227575-f71694f4-5f4b-4433-8b7c-3f5f3e7e8b8a.mp3" type="audio/mp3">
+</audio>
 
-    <script>
-    function triggerJumpscare() {
-        // Ses çal
-        var audio = document.getElementById('scream-audio');
-        audio.volume = 1.0;
-        audio.play();
-
-        // Görseli göster ve tam ekran yap
-        var overlay = document.getElementById('jumpscare-overlay');
-        overlay.style.display = 'flex';
-        
-        if (overlay.requestFullscreen) {
-            overlay.requestFullscreen();
-        } else if (overlay.webkitRequestFullscreen) {
-            overlay.webkitRequestFullscreen();
-        }
+<style>
+    #scare-btn {
+        width: 100%; height: 300px; background-color: #ff0000; 
+        color: white; font-size: 35px; font-weight: bold; 
+        border: 10px double white; border-radius: 20px; cursor: pointer;
     }
-    </script>
-    """, unsafe_allow_html=True)
+    #scare-overlay {
+        display: none; position: fixed; top: 0; left: 0; 
+        width: 100%; height: 100%; background: black; z-index: 9999;
+    }
+    #scare-img { width: 100%; height: 100%; object-fit: cover; }
+</style>
 
-# Kullanıcıyı kandıracak arayüz
-st.write("### ⚠️ CİHAZINIZA VİRÜS BULAŞTI!")
-st.write("Midyat/Mardin konumundan şüpheli bir IP adresi tüm dosyalarınıza erişiyor.")
-st.write("Dosyalarınızın silinmesini engellemek için hemen aşağıdaki butona basın.")
+<script>
+    const btn = document.getElementById('scare-btn');
+    const overlay = document.getElementById('scare-overlay');
+    const audio = document.getElementById('scream');
 
-# Streamlit butonu yerine HTML butonu kullanarak JS tetikliyoruz
-st.components.v1.html("""
-    <button onclick="parent.triggerJumpscare()" style="
-        width: 100%; height: 200px; background-color: #ff0000; 
-        color: white; font-size: 40px; font-weight: bold; 
-        border: none; border-radius: 20px; cursor: pointer;
-    ">
-        VİRÜSÜ TEMİZLE VE SİSTEMİ KURTAR
-    </button>
-""", height=250)
+    btn.addEventListener('click', function() {
+        // Ses çal
+        audio.currentTime = 0;
+        audio.play().catch(e => console.log("Ses engellendi"));
+        
+        // Görseli göster
+        overlay.style.display = 'block';
+        
+        // Tam ekran yap (Mümkünse)
+        if (overlay.requestFullscreen) { overlay.requestFullscreen(); }
+        else if (overlay.webkitRequestFullscreen) { overlay.webkitRequestFullscreen(); }
+        
+        // Cihazı titret (Eğer telefondaysa)
+        if (navigator.vibrate) { navigator.vibrate([500, 200, 500]); }
+    });
+</script>
+"""
 
-st.warning("Not: İşlemin başarılı olması için cihaz sesinin %100 açık olduğundan emin olun.")
+# HTML bileşenini sayfaya bas
+components.html(jumpscare_code, height=600)
+
+st.warning("Not: Sinyal hatası almamak için cihaz sesini sonuna kadar açın.")
