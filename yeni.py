@@ -1,204 +1,282 @@
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Genel Yorum Duvarı</title>
-    <!-- Tailwind CSS for styling -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Firebase SDKs -->
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
+import React, { useState, useEffect } from 'react';
+import { initializeApp } from 'firebase/app';
+import { 
+  getFirestore, 
+  collection, 
+  addDoc, 
+  onSnapshot, 
+  query, 
+  serverTimestamp 
+} from 'firebase/firestore';
+import { 
+  getAuth, 
+  signInAnonymously, 
+  signInWithCustomToken, 
+  onAuthStateChanged 
+} from 'firebase/auth';
+import { 
+  MessageSquare, 
+  Send, 
+  User, 
+  Clock, 
+  AlertCircle,
+  Heart,
+  Share2
+} from 'lucide-react';
 
-        // --- FIREBASE CONFIGURATION ---
-        // GitHub'a yüklerken bu kısmı kendi Firebase konsolunuzdan aldığınız bilgilerle değiştirin.
-        // Mevcut haliyle önizleme ortamında çalışacaktır.
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-comment-app';
+// Firebase Yapılandırması (Environment'dan gelen config kullanılır)
+const firebaseConfig = JSON.parse(__firebase_config);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'yorum-duvari-v1';
 
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+export default function App() {
+  const [user, setUser] = useState(null);
+  const [comments, setComments] = useState([]);
+  const [name, setName] = useState('');
+  const [commentText, setCommentText] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-        // State Management
-        let currentUser = null;
-        const commentForm = document.getElementById('commentForm');
-        const commentList = document.getElementById('commentList');
-        const submitBtn = document.getElementById('submitBtn');
-        const errorAlert = document.getElementById('errorAlert');
-
-        // Authentication
-        async function initAuth() {
-            try {
-                await signInAnonymously(auth);
-                onAuthStateChanged(auth, (user) => {
-                    currentUser = user;
-                    if (user) loadComments();
-                });
-            } catch (error) {
-                showError("Veritabanına bağlanılamadı. Lütfen Firebase ayarlarınızı kontrol edin.");
-            }
+  // 1. Kimlik Doğrulama (Auth)
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
         }
+      } catch (err) {
+        console.error("Oturum hatası:", err);
+        setError("Oturum açılamadı. Lütfen sayfayı yenileyin.");
+      }
+    };
 
-        // Load Comments
-        function loadComments() {
-            // Rule 1: Using the mandatory path structure
-            const commentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'comments');
-            const q = query(commentsRef);
+    initAuth();
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
 
-            onSnapshot(q, (snapshot) => {
-                const comments = [];
-                snapshot.forEach((doc) => {
-                    comments.push({ id: doc.id, ...doc.data() });
-                });
+    return () => unsubscribe();
+  }, []);
 
-                // Rule 2: Sorting in memory (Newest first)
-                comments.sort((a, b) => {
-                    const timeA = b.createdAt?.seconds || 0;
-                    const timeB = a.createdAt?.seconds || 0;
-                    return timeA - timeB;
-                });
+  // 2. Veritabanı Dinleyici (Firestore)
+  useEffect(() => {
+    if (!user) return;
 
-                renderComments(comments);
-            }, (err) => {
-                showError("Yorumlar yüklenirken bir hata oluştu.");
-            });
-        }
+    // Koleksiyon yolu: artifacts/{appId}/public/data/comments
+    const commentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'comments');
+    const q = query(commentsRef);
 
-        // Render UI
-        function renderComments(comments) {
-            if (comments.length === 0) {
-                commentList.innerHTML = `
-                    <div class="text-center py-10 border-2 border-dashed border-gray-200 rounded-2xl">
-                        <p class="text-gray-400">Henüz yorum yok. İlk adımı sen at!</p>
-                    </div>
-                `;
-                return;
-            }
-
-            commentList.innerHTML = comments.map(c => `
-                <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all">
-                    <div class="flex justify-between items-start mb-3">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
-                                ${c.userName ? c.userName.charAt(0).toUpperCase() : '?'}
-                            </div>
-                            <div>
-                                <h3 class="font-bold text-gray-800">${c.userName || 'Anonim'}</h3>
-                                <p class="text-[10px] text-gray-400 uppercase tracking-wider">${formatDate(c.createdAt)}</p>
-                            </div>
-                        </div>
-                    </div>
-                    <p class="text-gray-600 leading-relaxed pl-1">${c.text}</p>
-                </div>
-            `).join('');
-        }
-
-        function formatDate(ts) {
-            if (!ts) return "Az önce";
-            const date = ts.toDate();
-            return date.toLocaleDateString('tr-TR', { day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' });
-        }
-
-        function showError(msg) {
-            errorAlert.textContent = msg;
-            errorAlert.classList.remove('hidden');
-        }
-
-        // Submit Comment
-        commentForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            if (!currentUser) return showError("Oturum açılmadı.");
-
-            const name = document.getElementById('nameInput').value.trim();
-            const text = document.getElementById('textInput').value.trim();
-
-            if (!name || !text) return;
-
-            submitBtn.disabled = true;
-            submitBtn.textContent = "Gönderiliyor...";
-
-            try {
-                const commentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'comments');
-                await addDoc(commentsRef, {
-                    userName: name,
-                    text: text,
-                    userId: currentUser.uid,
-                    createdAt: serverTimestamp()
-                });
-                document.getElementById('textInput').value = '';
-            } catch (err) {
-                showError("Yorum gönderilirken hata oluştu.");
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = `<span>Yorumu Paylaş</span>`;
-            }
+    const unsubscribe = onSnapshot(q, 
+      (snapshot) => {
+        const data = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        
+        // Tarihe göre sıralama (Yeniden eskiye)
+        const sortedData = data.sort((a, b) => {
+          const timeA = b.createdAt?.seconds || 0;
+          const timeB = a.createdAt?.seconds || 0;
+          return timeA - timeB;
         });
 
-        window.onload = initAuth;
-    </script>
-</head>
-<body class="bg-slate-50 min-h-screen text-slate-900 font-sans antialiased">
+        setComments(sortedData);
+        setIsLoading(false);
+      }, 
+      (err) => {
+        console.error("Veri çekme hatası:", err);
+        setError("Yorumlar yüklenemedi.");
+        setIsLoading(false);
+      }
+    );
 
-    <div class="max-w-2xl mx-auto px-4 py-12">
-        <!-- Header -->
-        <header class="text-center mb-10">
-            <div class="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl shadow-xl shadow-indigo-100 mb-4">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                </svg>
-            </div>
-            <h1 class="text-3xl font-extrabold text-slate-800 tracking-tight">Yorum Duvarı</h1>
-            <p class="text-slate-500 mt-2">Düşüncelerini bırak, burada sonsuza kadar kalsın.</p>
+    return () => unsubscribe();
+  }, [user]);
+
+  // Yorum Gönderme Fonksiyonu
+  const handlePostComment = async (e) => {
+    e.preventDefault();
+    if (!name.trim() || !commentText.trim() || !user) return;
+
+    setIsSubmitting(true);
+    try {
+      const commentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'comments');
+      await addDoc(commentsRef, {
+        author: name.trim(),
+        text: commentText.trim(),
+        uid: user.uid,
+        createdAt: serverTimestamp(),
+        likes: 0
+      });
+      setCommentText('');
+    } catch (err) {
+      setError("Yorum paylaşılamadı.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const formatDate = (timestamp) => {
+    if (!timestamp) return "Az önce";
+    const date = timestamp.toDate();
+    return new Intl.DateTimeFormat('tr-TR', {
+      day: 'numeric',
+      month: 'long',
+      hour: '2-digit',
+      minute: '2-digit'
+    }).format(date);
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-900 selection:bg-indigo-100 p-4 md:p-10 font-sans">
+      <div className="max-w-3xl mx-auto">
+        
+        {/* Header Bölümü */}
+        <header className="mb-12 text-center">
+          <div className="inline-flex items-center justify-center p-4 bg-indigo-600 rounded-3xl mb-6 shadow-2xl shadow-indigo-200">
+            <MessageSquare className="text-white w-10 h-10" />
+          </div>
+          <h1 className="text-4xl font-black tracking-tight text-slate-800 mb-2">
+            Fikir Duvarı
+          </h1>
+          <p className="text-slate-500 font-medium">
+            Herkese açık, kalıcı ve gerçek zamanlı bir paylaşım alanı.
+          </p>
         </header>
 
-        <!-- Error Area -->
-        <div id="errorAlert" class="hidden mb-6 p-4 bg-red-50 border border-red-100 text-red-600 rounded-xl text-sm font-medium text-center"></div>
+        {/* Hata Mesajı */}
+        {error && (
+          <div className="mb-8 p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 text-red-600 animate-pulse">
+            <AlertCircle className="w-5 h-5 shrink-0" />
+            <span className="text-sm font-semibold">{error}</span>
+          </div>
+        )}
 
-        <!-- Form Area -->
-        <section class="bg-white rounded-3xl shadow-sm border border-slate-200 p-6 md:p-8 mb-10">
-            <form id="commentForm" class="space-y-5">
-                <div>
-                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">İsminiz</label>
-                    <input id="nameInput" type="text" required placeholder="Adınız nedir?" 
-                        class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all">
+        {/* Yorum Yazma Alanı */}
+        <div className="bg-white rounded-[2rem] shadow-sm border border-slate-200 p-6 md:p-8 mb-12 transform transition-all hover:shadow-xl hover:shadow-slate-200/50">
+          <form onSubmit={handlePostComment} className="space-y-6">
+            <div className="grid grid-cols-1 gap-6">
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Kimin Adına?</label>
+                <div className="relative">
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Adınız veya Rumuzunuz"
+                    className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all placeholder:text-slate-300"
+                    required
+                  />
                 </div>
-                <div>
-                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Mesajınız</label>
-                    <textarea id="textInput" required rows="3" placeholder="Neler düşünüyorsun?" 
-                        class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all resize-none"></textarea>
-                </div>
-                <button id="submitBtn" type="submit" 
-                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-indigo-100 transition-all active:scale-[0.98] flex items-center justify-center gap-2">
-                    <span>Yorumu Paylaş</span>
-                </button>
-            </form>
-        </section>
-
-        <!-- Comments List -->
-        <section>
-            <div class="flex items-center gap-4 mb-6">
-                <h2 class="text-xl font-bold text-slate-800">Son Paylaşımlar</h2>
-                <div class="h-px flex-1 bg-slate-200"></div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Mesajınız</label>
+                <textarea
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  placeholder="Neler söylemek istersiniz?"
+                  rows="3"
+                  className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all resize-none placeholder:text-slate-300"
+                  required
+                />
+              </div>
             </div>
             
-            <div id="commentList" class="space-y-4">
-                <!-- Comments will be injected here -->
-                <div class="text-center py-10">
-                    <div class="inline-block w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-                </div>
+            <button
+              type="submit"
+              disabled={isSubmitting || !user}
+              className="group w-full flex items-center justify-center gap-3 py-4 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-2xl transition-all shadow-lg shadow-indigo-100 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? (
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <>
+                  <Send className="w-4 h-4 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
+                  Paylaşımı Gönder
+                </>
+              )}
+            </button>
+          </form>
+        </div>
+
+        {/* Yorum Listesi */}
+        <div className="space-y-6">
+          <div className="flex items-center justify-between mb-8">
+            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
+              Yorumlar
+              <span className="bg-indigo-100 text-indigo-600 text-xs px-3 py-1 rounded-full font-black">
+                {comments.length}
+              </span>
+            </h2>
+          </div>
+
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-20 opacity-40">
+              <div className="w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-4" />
+              <p className="font-medium">Hafıza yükleniyor...</p>
             </div>
-        </section>
+          ) : comments.length === 0 ? (
+            <div className="text-center py-20 bg-white rounded-[2rem] border border-dashed border-slate-300">
+              <p className="text-slate-400 font-medium">Burası biraz sessiz... İlk yorumu sen yap!</p>
+            </div>
+          ) : (
+            <div className="grid gap-6">
+              {comments.map((comment) => (
+                <div 
+                  key={comment.id} 
+                  className="group bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm hover:shadow-md transition-all relative overflow-hidden"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-black shadow-inner shadow-black/10">
+                        {comment.author.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-slate-800 text-lg">{comment.author}</h3>
+                        <div className="flex items-center gap-2 text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+                          <Clock className="w-3 h-3" />
+                          {formatDate(comment.createdAt)}
+                        </div>
+                      </div>
+                    </div>
+                    <button className="p-2 hover:bg-slate-50 rounded-xl transition-colors text-slate-300 hover:text-indigo-500">
+                      <Share2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                  
+                  <p className="text-slate-600 leading-relaxed text-lg pl-1 whitespace-pre-wrap">
+                    {comment.text}
+                  </p>
 
-        <!-- Footer -->
-        <footer class="mt-16 text-center text-slate-400 text-xs">
-            <p>&copy; 2024 Kalıcı Yorum Duvarı. Tüm veriler veritabanında saklanır.</p>
+                  <div className="mt-6 pt-5 border-t border-slate-50 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <button className="flex items-center gap-1.5 text-slate-400 hover:text-rose-500 transition-colors group/btn">
+                        <Heart className="w-4 h-4 group-hover/btn:fill-rose-500 transition-all" />
+                        <span className="text-xs font-bold">Beğen</span>
+                      </button>
+                    </div>
+                    <span className="text-[10px] text-slate-200 font-mono">ID: {comment.id.slice(0, 8)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <footer className="mt-20 py-10 text-center border-t border-slate-200">
+          <p className="text-slate-400 text-sm font-medium">
+            &copy; 2024 Fikir Duvarı &bull; Tüm hakları saklıdır.
+          </p>
         </footer>
+      </div>
     </div>
-
-</body>
-</html>
+  );
+}
 
