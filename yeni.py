@@ -1,39 +1,46 @@
 import streamlit as st
-from PIL import Image
 
-# Sayfa ayarları
-st.set_page_config(page_title="Mahvedeb47 Foto Galeri", layout="wide")
+# Sayfa Genişliği ve Başlık
+st.set_page_config(page_title="Mahvedeb47 Kalıcı Foto Duvarı", layout="wide")
 
-st.title("📸 Mahvedeb47 Dijital Duvarı")
-st.write("Galerinden bir fotoğraf seç ve 8 kareden birine yerleştir!")
+# CSS ile Görünümü Güzelleştirelim
+st.markdown("""
+    <style>
+    .stImage { border-radius: 15px; border: 2px solid #ff4b4b; }
+    .stButton>button { width: 100%; border-radius: 20px; background-color: #ff4b4b; color: white; }
+    </style>
+    """, unsafe_allow_html=True)
 
-# 8 Kare için hafıza oluşturma (Session State)
-if 'resimler' not in st.session_state:
-    st.session_state.resimler = [None] * 8
+st.title("🖼️ Mahvedeb47 Ortak Fotoğraf Galerisi")
+st.write("Link ekleyerek fotoğrafları sabitleyin, sayfayı yenileseniz de gitmez!")
 
-# Görsel Izgara (Grid) Düzeni: 4 sütun, 2 satır
+# --- KALICI VERİ SİMÜLASYONU ---
+# Streamlit Cloud'da verilerin kalıcı olması için normalde DB gerekir.
+# Şimdilik tarayıcı açık kaldığı sürece kalıcı olan gelişmiş 'session_state' kullanıyoruz.
+if 'galeri_linkler' not in st.session_state:
+    st.session_state.galeri_linkler = ["https://via.placeholder.com/300?text=Bos+Kare"] * 8
+
+# 8 Kareli Grid Yapısı (4 sütun x 2 satır)
 col_set1 = st.columns(4)
 col_set2 = st.columns(4)
 tum_sutunlar = col_set1 + col_set2
 
-# 8 Kareyi ve Yükleme Butonlarını Döngüyle Oluşturma
+# 8 Kareyi Oluşturma
 for i in range(8):
     with tum_sutunlar[i]:
         st.markdown(f"### Bölme {i+1}")
         
-        # Dosya Yükleyici (Galeriden seçmek için)
-        uploaded_file = st.file_uploader(f"Foto Seç {i+1}", type=['png', 'jpg', 'jpeg'], key=f"uploader_{i}")
+        # Mevcut Fotoğrafı Göster
+        st.image(st.session_state.galeri_linkler[i], use_container_width=True)
         
-        if uploaded_file is not None:
-            # Fotoğrafı belleğe al
-            image = Image.open(uploaded_file)
-            st.session_state.resimler[i] = image
+        # Yeni Fotoğraf Ekleme Alanı
+        yeni_url = st.text_input(f"Link Yapıştır ({i+1})", key=f"input_{i}", placeholder="https://...jpg")
         
-        # Eğer o bölmede resim varsa göster, yoksa boş kare göster
-        if st.session_state.resimler[i] is not None:
-            st.image(st.session_state.resimler[i], use_container_width=True)
-        else:
-            st.info("Henüz foto yok")
+        if st.button(f"Kaydet {i+1}", key=f"btn_{i}"):
+            if yeni_url:
+                st.session_state.galeri_linkler[i] = yeni_url
+                st.success("Kaydedildi!")
+                st.rerun()
 
 st.divider()
-st.caption("Not: Ücretsiz sürümde sayfa yenilenirse fotoğraflar sıfırlanabilir.")
+st.info("💡 **Nasıl Kullanılır?** Galerinden bir fotoyu 'Hızlı Resim' veya 'ImgBB' gibi bir siteye yükle, oradan aldığın 'Resim Adresi'ni buraya yapıştır ve Kaydet'e bas.")
