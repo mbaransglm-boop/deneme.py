@@ -1,46 +1,71 @@
 import streamlit as st
 
-# Sayfa Genişliği ve Başlık
-st.set_page_config(page_title="Mahvedeb47 Kalıcı Foto Duvarı", layout="wide")
+# Sayfa Ayarları - Sekme başlığını Instagram gibi yapalım
+st.set_page_config(page_title="Instagram • Giriş Yap", page_icon="📸")
 
-# CSS ile Görünümü Güzelleştirelim
+# Instagram Tasarımı İçin CSS
 st.markdown("""
     <style>
-    .stImage { border-radius: 15px; border: 2px solid #ff4b4b; }
-    .stButton>button { width: 100%; border-radius: 20px; background-color: #ff4b4b; color: white; }
+    /* Arka planı beyaz yap */
+    .main { background-color: white; }
+    
+    /* Giriş kutusunu ortala ve çerçeve ekle */
+    .stTextInput>div>div>input {
+        background-color: #fafafa;
+        border: 1px solid #dbdbdb;
+        border-radius: 3px;
+    }
+    
+    /* Giriş Butonu Stili */
+    .stButton>button {
+        width: 100%;
+        background-color: #0095f6;
+        color: white;
+        font-weight: bold;
+        border: none;
+        border-radius: 8px;
+        height: 35px;
+    }
+    
+    .stButton>button:hover {
+        background-color: #1877f2;
+        color: white;
+    }
+
+    /* Instagram Logosu Yazı Tipi Simülasyonu */
+    .insta-logo {
+        font-family: 'Cookie', cursive;
+        font-size: 50px;
+        text-align: center;
+        margin-bottom: 20px;
+        color: #262626;
+    }
     </style>
+    <link href="https://fonts.googleapis.com/css2?family=Cookie&display=swap" rel="stylesheet">
     """, unsafe_allow_html=True)
 
-st.title("🖼️ Mahvedeb47 Ortak Fotoğraf Galerisi")
-st.write("Link ekleyerek fotoğrafları sabitleyin, sayfayı yenileseniz de gitmez!")
+# Orta Panel
+col1, col2, col3 = st.columns([1, 2, 1])
 
-# --- KALICI VERİ SİMÜLASYONU ---
-# Streamlit Cloud'da verilerin kalıcı olması için normalde DB gerekir.
-# Şimdilik tarayıcı açık kaldığı sürece kalıcı olan gelişmiş 'session_state' kullanıyoruz.
-if 'galeri_linkler' not in st.session_state:
-    st.session_state.galeri_linkler = ["https://via.placeholder.com/300?text=Bos+Kare"] * 8
+with col2:
+    st.markdown('<div class="insta-logo">Instagram</div>', unsafe_allow_html=True)
+    
+    # Kullanıcı Giriş Alanları
+    username = st.text_input("", placeholder="Telefon numarası, kullanıcı adı veya e-posta")
+    password = st.text_input("", placeholder="Şifre", type="password")
+    
+    if st.button("Giriş Yap"):
+        if username and password:
+            # ŞAKA KISMI: Buraya bir hata veya şaka mesajı ekliyoruz
+            st.error("Üzgünüz, şifren yanlıştı. Lütfen şifreni dikkatlice kontrol et.")
+            st.toast("Mahvedeb47 tarafından hacklendiniz! 😉")
+        else:
+            st.warning("Lütfen tüm alanları doldur.")
 
-# 8 Kareli Grid Yapısı (4 sütun x 2 satır)
-col_set1 = st.columns(4)
-col_set2 = st.columns(4)
-tum_sutunlar = col_set1 + col_set2
+    st.markdown("<p style='text-align: center; color: #8e8e8e; font-size: 14px;'>veya</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #385185; font-weight: bold; font-size: 14px;'>Facebook ile Giriş Yap</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align: center; color: #00376b; font-size: 12px; margin-top: 20px;'>Şifreni mi unuttun?</p>", unsafe_allow_html=True)
 
-# 8 Kareyi Oluşturma
-for i in range(8):
-    with tum_sutunlar[i]:
-        st.markdown(f"### Bölme {i+1}")
-        
-        # Mevcut Fotoğrafı Göster
-        st.image(st.session_state.galeri_linkler[i], use_container_width=True)
-        
-        # Yeni Fotoğraf Ekleme Alanı
-        yeni_url = st.text_input(f"Link Yapıştır ({i+1})", key=f"input_{i}", placeholder="https://...jpg")
-        
-        if st.button(f"Kaydet {i+1}", key=f"btn_{i}"):
-            if yeni_url:
-                st.session_state.galeri_linkler[i] = yeni_url
-                st.success("Kaydedildi!")
-                st.rerun()
-
+# Alt Kısım
 st.divider()
-st.info("💡 **Nasıl Kullanılır?** Galerinden bir fotoyu 'Hızlı Resim' veya 'ImgBB' gibi bir siteye yükle, oradan aldığın 'Resim Adresi'ni buraya yapıştır ve Kaydet'e bas.")
+st.markdown("<p style='text-align: center; color: #8e8e8e;'>Hesabın yok mu? <span style='color: #0095f6; font-weight: bold;'>Kaydol</span></p>", unsafe_allow_html=True)
