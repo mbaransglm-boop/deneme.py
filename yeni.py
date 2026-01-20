@@ -1,252 +1,204 @@
-import React, { useState, useEffect } from 'react';
-import { initializeApp } from 'firebase/app';
-import { 
-  getFirestore, 
-  collection, 
-  addDoc, 
-  onSnapshot, 
-  query, 
-  serverTimestamp 
-} from 'firebase/firestore';
-import { 
-  getAuth, 
-  signInAnonymously, 
-  signInWithCustomToken, 
-  onAuthStateChanged 
-} from 'firebase/auth';
-import { MessageSquare, Send, User, Clock, AlertCircle } from 'lucide-react';
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Genel Yorum Duvarı</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
 
-// Firebase yapılandırması ortam değişkenlerinden alınır
-const firebaseConfig = JSON.parse(__firebase_config);
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'comment-wall-demo';
+        // --- FIREBASE CONFIGURATION ---
+        // GitHub'a yüklerken bu kısmı kendi Firebase konsolunuzdan aldığınız bilgilerle değiştirin.
+        // Mevcut haliyle önizleme ortamında çalışacaktır.
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-comment-app';
 
-export default function App() {
-  const [user, setUser] = useState(null);
-  const [comments, setComments] = useState([]);
-  const [name, setName] = useState('');
-  const [newComment, setNewComment] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState(null);
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
 
-  // 1. Kimlik Doğrulama (Auth) Kurulumu
-  useEffect(() => {
-    const initAuth = async () => {
-      try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-          await signInAnonymously(auth);
+        // State Management
+        let currentUser = null;
+        const commentForm = document.getElementById('commentForm');
+        const commentList = document.getElementById('commentList');
+        const submitBtn = document.getElementById('submitBtn');
+        const errorAlert = document.getElementById('errorAlert');
+
+        // Authentication
+        async function initAuth() {
+            try {
+                await signInAnonymously(auth);
+                onAuthStateChanged(auth, (user) => {
+                    currentUser = user;
+                    if (user) loadComments();
+                });
+            } catch (error) {
+                showError("Veritabanına bağlanılamadı. Lütfen Firebase ayarlarınızı kontrol edin.");
+            }
         }
-      } catch (err) {
-        console.error("Auth error:", err);
-        setError("Oturum açılamadı. Lütfen sayfayı yenileyin.");
-      }
-    };
 
-    initAuth();
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-    });
+        // Load Comments
+        function loadComments() {
+            // Rule 1: Using the mandatory path structure
+            const commentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'comments');
+            const q = query(commentsRef);
 
-    return () => unsubscribe();
-  }, []);
+            onSnapshot(q, (snapshot) => {
+                const comments = [];
+                snapshot.forEach((doc) => {
+                    comments.push({ id: doc.id, ...doc.data() });
+                });
 
-  // 2. Veri Dinleme (Firestore) Kurulumu
-  useEffect(() => {
-    if (!user) return;
+                // Rule 2: Sorting in memory (Newest first)
+                comments.sort((a, b) => {
+                    const timeA = b.createdAt?.seconds || 0;
+                    const timeB = a.createdAt?.seconds || 0;
+                    return timeA - timeB;
+                });
 
-    // Kural 1: Belirtilen yolu kullanıyoruz
-    const commentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'comments');
-    
-    // Kural 2: Karmaşık sorgulardan kaçınıyoruz, sıralamayı bellekte yapacağız
-    const q = query(commentsRef);
+                renderComments(comments);
+            }, (err) => {
+                showError("Yorumlar yüklenirken bir hata oluştu.");
+            });
+        }
 
-    const unsubscribe = onSnapshot(q, 
-      (snapshot) => {
-        const fetchedComments = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        
-        // Bellekte tarihe göre sıralama (Yeniden eskiye)
-        const sorted = fetchedComments.sort((a, b) => {
-          const timeA = b.createdAt?.seconds || 0;
-          const timeB = a.createdAt?.seconds || 0;
-          return timeA - timeB;
+        // Render UI
+        function renderComments(comments) {
+            if (comments.length === 0) {
+                commentList.innerHTML = `
+                    <div class="text-center py-10 border-2 border-dashed border-gray-200 rounded-2xl">
+                        <p class="text-gray-400">Henüz yorum yok. İlk adımı sen at!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            commentList.innerHTML = comments.map(c => `
+                <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all">
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
+                                ${c.userName ? c.userName.charAt(0).toUpperCase() : '?'}
+                            </div>
+                            <div>
+                                <h3 class="font-bold text-gray-800">${c.userName || 'Anonim'}</h3>
+                                <p class="text-[10px] text-gray-400 uppercase tracking-wider">${formatDate(c.createdAt)}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="text-gray-600 leading-relaxed pl-1">${c.text}</p>
+                </div>
+            `).join('');
+        }
+
+        function formatDate(ts) {
+            if (!ts) return "Az önce";
+            const date = ts.toDate();
+            return date.toLocaleDateString('tr-TR', { day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' });
+        }
+
+        function showError(msg) {
+            errorAlert.textContent = msg;
+            errorAlert.classList.remove('hidden');
+        }
+
+        // Submit Comment
+        commentForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!currentUser) return showError("Oturum açılmadı.");
+
+            const name = document.getElementById('nameInput').value.trim();
+            const text = document.getElementById('textInput').value.trim();
+
+            if (!name || !text) return;
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = "Gönderiliyor...";
+
+            try {
+                const commentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'comments');
+                await addDoc(commentsRef, {
+                    userName: name,
+                    text: text,
+                    userId: currentUser.uid,
+                    createdAt: serverTimestamp()
+                });
+                document.getElementById('textInput').value = '';
+            } catch (err) {
+                showError("Yorum gönderilirken hata oluştu.");
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = `<span>Yorumu Paylaş</span>`;
+            }
         });
 
-        setComments(sorted);
-        setLoading(false);
-      }, 
-      (err) => {
-        console.error("Firestore error:", err);
-        setError("Yorumlar yüklenirken bir sorun oluştu.");
-        setLoading(false);
-      }
-    );
+        window.onload = initAuth;
+    </script>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-900 font-sans antialiased">
 
-    return () => unsubscribe();
-  }, [user]);
-
-  // Yorum Gönderme İşlemi
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!name.trim() || !newComment.trim() || !user) return;
-
-    setSubmitting(true);
-    try {
-      const commentsRef = collection(db, 'artifacts', appId, 'public', 'data', 'comments');
-      await addDoc(commentsRef, {
-        userName: name.trim(),
-        text: newComment.trim(),
-        userId: user.uid,
-        createdAt: serverTimestamp()
-      });
-      setNewComment('');
-      // İsmi hafızada tutabiliriz ama yorum alanını temizliyoruz
-    } catch (err) {
-      console.error("Submit error:", err);
-      setError("Yorum gönderilemedi.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const formatDate = (timestamp) => {
-    if (!timestamp) return "Az önce";
-    const date = timestamp.toDate();
-    return date.toLocaleString('tr-TR', { 
-      day: '2-digit', 
-      month: 'short', 
-      year: 'numeric', 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
-  };
-
-  return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans p-4 md:p-8">
-      <div className="max-w-2xl mx-auto">
-        {/* Header */}
-        <header className="mb-8 text-center">
-          <div className="inline-flex items-center justify-center p-3 bg-blue-600 rounded-2xl mb-4 shadow-lg shadow-blue-200">
-            <MessageSquare className="text-white w-8 h-8" />
-          </div>
-          <h1 className="text-3xl font-bold tracking-tight text-slate-800">Genel Yorum Duvarı</h1>
-          <p className="text-slate-500 mt-2">Düşüncelerini paylaş, kalıcı olsun.</p>
+    <div class="max-w-2xl mx-auto px-4 py-12">
+        <!-- Header -->
+        <header class="text-center mb-10">
+            <div class="inline-flex items-center justify-center w-16 h-16 bg-indigo-600 rounded-2xl shadow-xl shadow-indigo-100 mb-4">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                </svg>
+            </div>
+            <h1 class="text-3xl font-extrabold text-slate-800 tracking-tight">Yorum Duvarı</h1>
+            <p class="text-slate-500 mt-2">Düşüncelerini bırak, burada sonsuza kadar kalsın.</p>
         </header>
 
-        {/* Error Message */}
-        {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-xl flex items-start gap-3 text-red-700">
-            <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
-            <p className="text-sm font-medium">{error}</p>
-          </div>
-        )}
+        <!-- Error Area -->
+        <div id="errorAlert" class="hidden mb-6 p-4 bg-red-50 border border-red-100 text-red-600 rounded-xl text-sm font-medium text-center"></div>
 
-        {/* Comment Form */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-8">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1.5">İsminiz</label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Adınızı yazın..."
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all"
-                  required
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-1.5">Yorumunuz</label>
-              <textarea
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                placeholder="Neler düşünüyorsunuz?"
-                rows="3"
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all resize-none"
-                required
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={submitting || !user}
-              className={`w-full flex items-center justify-center gap-2 py-3 px-6 rounded-xl font-bold text-white transition-all transform active:scale-95 ${
-                submitting || !user 
-                ? 'bg-slate-300 cursor-not-allowed' 
-                : 'bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg'
-              }`}
-            >
-              {submitting ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-              ) : (
-                <>
-                  <Send className="w-4 h-4" />
-                  Yorumu Gönder
-                </>
-              )}
-            </button>
-          </form>
-        </div>
-
-        {/* Comments List */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between px-2">
-            <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              Son Yorumlar
-              <span className="bg-slate-200 text-slate-600 text-xs px-2 py-0.5 rounded-full">
-                {comments.length}
-              </span>
-            </h2>
-          </div>
-
-          {loading ? (
-            <div className="text-center py-12">
-              <div className="inline-block w-8 h-8 border-3 border-blue-600/20 border-t-blue-600 rounded-full animate-spin mb-4"></div>
-              <p className="text-slate-500 text-sm">Yorumlar yükleniyor...</p>
-            </div>
-          ) : comments.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-dashed border-slate-300 p-12 text-center">
-              <p className="text-slate-400">Henüz yorum yapılmamış. İlk yorumu sen yap!</p>
-            </div>
-          ) : (
-            comments.map((comment) => (
-              <div 
-                key={comment.id} 
-                className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow group"
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm uppercase">
-                      {comment.userName.charAt(0)}
-                    </div>
-                    <span className="font-bold text-slate-800">{comment.userName}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs text-slate-400 bg-slate-50 px-2 py-1 rounded-lg">
-                    <Clock className="w-3 h-3" />
-                    {formatDate(comment.createdAt)}
-                  </div>
+        <!-- Form Area -->
+        <section class="bg-white rounded-3xl shadow-sm border border-slate-200 p-6 md:p-8 mb-10">
+            <form id="commentForm" class="space-y-5">
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">İsminiz</label>
+                    <input id="nameInput" type="text" required placeholder="Adınız nedir?" 
+                        class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all">
                 </div>
-                <p className="text-slate-600 leading-relaxed whitespace-pre-wrap pl-10">
-                  {comment.text}
-                </p>
-                <div className="mt-3 pt-3 border-t border-slate-50 flex justify-end">
-                   <span className="text-[10px] text-slate-300 font-mono">ID: {comment.userId?.slice(0, 8)}</span>
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Mesajınız</label>
+                    <textarea id="textInput" required rows="3" placeholder="Neler düşünüyorsun?" 
+                        class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition-all resize-none"></textarea>
                 </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
+                <button id="submitBtn" type="submit" 
+                    class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-2xl shadow-lg shadow-indigo-100 transition-all active:scale-[0.98] flex items-center justify-center gap-2">
+                    <span>Yorumu Paylaş</span>
+                </button>
+            </form>
+        </section>
+
+        <!-- Comments List -->
+        <section>
+            <div class="flex items-center gap-4 mb-6">
+                <h2 class="text-xl font-bold text-slate-800">Son Paylaşımlar</h2>
+                <div class="h-px flex-1 bg-slate-200"></div>
+            </div>
+            
+            <div id="commentList" class="space-y-4">
+                <!-- Comments will be injected here -->
+                <div class="text-center py-10">
+                    <div class="inline-block w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="mt-16 text-center text-slate-400 text-xs">
+            <p>&copy; 2024 Kalıcı Yorum Duvarı. Tüm veriler veritabanında saklanır.</p>
+        </footer>
     </div>
-  );
-}
+
+</body>
+</html>
 
