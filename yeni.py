@@ -1,94 +1,42 @@
 import streamlit as st
 
-# Sayfa Yapılandırması
-st.set_page_config(page_title="Instagram", page_icon="📸", layout="centered")
+# Sayfa ayarları
+st.set_page_config(page_title="DİKKAT: SİSTEM HATASI", layout="centered")
 
-# Instagram Gerçekçi Tasarım (CSS)
+# CSS ile arka planı siyah ve yazıları ürkütücü yapalım
 st.markdown("""
     <style>
-    /* Arka planı bembeyaz yap */
-    .main { background-color: #ffffff !important; }
-    
-    /* Giriş kutuları tasarımı */
-    .stTextInput>div>div>input {
-        background-color: #fafafa;
-        border: 1px solid #dbdbdb;
-        border-radius: 3px;
-        color: #262626;
-        height: 38px;
-        font-size: 12px;
-    }
-    
-    /* Mavi Giriş Butonu */
-    .stButton>button {
-        width: 100%;
-        background-color: #0095f6;
+    .main { background-color: #000000; color: #ff0000; }
+    .stButton>button { 
+        width: 100%; 
+        height: 100px; 
+        font-size: 25px; 
+        background-color: #ff0000; 
         color: white;
-        font-weight: 600;
-        border: none;
-        border-radius: 8px;
-        height: 32px;
-        margin-top: 10px;
-    }
-    
-    .stButton>button:hover {
-        background-color: #1877f2;
-        color: white;
-    }
-
-    /* Logo fontu */
-    @import url('https://fonts.googleapis.com/css2?family=Cookie&display=swap');
-    .insta-header {
-        font-family: 'Cookie', cursive;
-        font-size: 60px;
-        text-align: center;
-        color: #262626;
-        margin-bottom: 30px;
-    }
-    
-    /* Alt kısımdaki gri yazılar */
-    .footer-text {
-        color: #8e8e8e;
-        font-size: 14px;
-        text-align: center;
+        font-weight: bold;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# Ekranı ortalamak için boş sütunlar kullanıyoruz
-left_co, cent_co, last_co = st.columns([1, 4, 1])
+st.title("⚠️ KRİTİK SİSTEM HATASI")
+st.write("Cihazınızda ciddi bir güvenlik açığı tespit edildi. Lütfen aşağıdan onarımı başlatın.")
 
-with cent_co:
-    # Instagram Logosu
-    st.markdown('<div class="insta-header">Instagram</div>', unsafe_allow_html=True)
+# Şaka Mekanizması
+if st.button("SİSTEMİ ŞİMDİ ONAR (ÖNEMLİ)"):
+    # 1. Korkunç Görsel
+    # Not: Buraya istediğin korkunç bir görselin direkt linkini koyabilirsin.
+    st.image("https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExM3N5bm9scXNyeWJ0bmZnbWJueG5ieG5ieG5ieG5ieG5ieG5ieG5ieCZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/3o7TKsWpY8j8oYpTJC/giphy.gif", use_container_width=True)
     
-    # Kullanıcı adı ve Şifre alanları
-    user_input = st.text_input("", placeholder="Telefon numarası, kullanıcı adı veya e-posta")
-    pass_input = st.text_input("", placeholder="Şifre", type="password")
+    # 2. Ses Efekti (HTML ile otomatik çalma)
+    # Sesin çalması için tarayıcının butona basıldığında ses izni vermesini sağlar.
+    audio_html = """
+        <audio autoplay>
+            <source src="https://www.soundboard.com/handler/DownLoadTrack.ashx?cliptitle=Scream&filename=22/227575-f71694f4-5f4b-4433-8b7c-3f5f3e7e8b8a.mp3" type="audio/mp3">
+        </audio>
+    """
+    st.markdown(audio_html, unsafe_allow_html=True)
     
-    if st.button("Giriş Yap"):
-        if user_input and pass_input:
-            # Gerçekçi hata mesajı
-            st.error("Üzgünüz, şifren yanlıştı. Lütfen şifreni dikkatlice kontrol et.")
-            
-            # Şaka patlaması: Yazılanları gösteriyoruz
-            st.markdown(f"""
-            <div style="border:1px dashed red; padding:10px; margin-top:20px; text-align:center;">
-                <p style="color:black;"><b>Mahvedeb47 Yakaladı! 😉</b></p>
-                <p style="color:blue;">Yazılan Kullanıcı: {user_input}</p>
-                <p style="color:blue;">Yazılan Şifre: {pass_input}</p>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.warning("Lütfen bilgileri eksiksiz girin.")
+    st.error("GÜVENLİK İHLALİ! MAHVEDEB47 TARAFINDAN HACKLENDİNİZ!")
 
-    # Diğer elemanlar
-    st.markdown("<br><p class='footer-text'>veya</p>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align:center; color:#385185; font-weight:600; font-size:14px; cursor:pointer;'>Facebook ile Giriş Yap</p>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align:center; color:#00376b; font-size:12px; margin-top:15px;'>Şifreni mi unuttun?</p>", unsafe_allow_html=True)
-
-    # Kaydol kısmı
-    st.markdown("<br><div style='border:1px solid #dbdbdb; padding:20px; text-align:center;'>"
-                "<span class='footer-text'>Hesabın yok mu? </span>"
-                "<span style='color:#0095f6; font-weight:600;'>Kaydol</span>"
-                "</div>", unsafe_allow_html=True)
+st.divider()
+st.caption("Not: Sesin çıkması için telefonunuzun sesinin açık olduğundan emin olun.")
