@@ -1,30 +1,34 @@
 import streamlit as st
 
-# Sayfa Ayarları - Sekme başlığını Instagram gibi yapalım
-st.set_page_config(page_title="Instagram • Giriş Yap", page_icon="📸")
+# Sayfa Yapılandırması
+st.set_page_config(page_title="Instagram", page_icon="📸", layout="centered")
 
-# Instagram Tasarımı İçin CSS
+# Instagram Gerçekçi Tasarım (CSS)
 st.markdown("""
     <style>
-    /* Arka planı beyaz yap */
-    .main { background-color: white; }
+    /* Arka planı bembeyaz yap */
+    .main { background-color: #ffffff !important; }
     
-    /* Giriş kutusunu ortala ve çerçeve ekle */
+    /* Giriş kutuları tasarımı */
     .stTextInput>div>div>input {
         background-color: #fafafa;
         border: 1px solid #dbdbdb;
         border-radius: 3px;
+        color: #262626;
+        height: 38px;
+        font-size: 12px;
     }
     
-    /* Giriş Butonu Stili */
+    /* Mavi Giriş Butonu */
     .stButton>button {
         width: 100%;
         background-color: #0095f6;
         color: white;
-        font-weight: bold;
+        font-weight: 600;
         border: none;
         border-radius: 8px;
-        height: 35px;
+        height: 32px;
+        margin-top: 10px;
     }
     
     .stButton>button:hover {
@@ -32,40 +36,59 @@ st.markdown("""
         color: white;
     }
 
-    /* Instagram Logosu Yazı Tipi Simülasyonu */
-    .insta-logo {
+    /* Logo fontu */
+    @import url('https://fonts.googleapis.com/css2?family=Cookie&display=swap');
+    .insta-header {
         font-family: 'Cookie', cursive;
-        font-size: 50px;
+        font-size: 60px;
         text-align: center;
-        margin-bottom: 20px;
         color: #262626;
+        margin-bottom: 30px;
+    }
+    
+    /* Alt kısımdaki gri yazılar */
+    .footer-text {
+        color: #8e8e8e;
+        font-size: 14px;
+        text-align: center;
     }
     </style>
-    <link href="https://fonts.googleapis.com/css2?family=Cookie&display=swap" rel="stylesheet">
     """, unsafe_allow_html=True)
 
-# Orta Panel
-col1, col2, col3 = st.columns([1, 2, 1])
+# Ekranı ortalamak için boş sütunlar kullanıyoruz
+left_co, cent_co, last_co = st.columns([1, 4, 1])
 
-with col2:
-    st.markdown('<div class="insta-logo">Instagram</div>', unsafe_allow_html=True)
+with cent_co:
+    # Instagram Logosu
+    st.markdown('<div class="insta-header">Instagram</div>', unsafe_allow_html=True)
     
-    # Kullanıcı Giriş Alanları
-    username = st.text_input("", placeholder="Telefon numarası, kullanıcı adı veya e-posta")
-    password = st.text_input("", placeholder="Şifre", type="password")
+    # Kullanıcı adı ve Şifre alanları
+    user_input = st.text_input("", placeholder="Telefon numarası, kullanıcı adı veya e-posta")
+    pass_input = st.text_input("", placeholder="Şifre", type="password")
     
     if st.button("Giriş Yap"):
-        if username and password:
-            # ŞAKA KISMI: Buraya bir hata veya şaka mesajı ekliyoruz
+        if user_input and pass_input:
+            # Gerçekçi hata mesajı
             st.error("Üzgünüz, şifren yanlıştı. Lütfen şifreni dikkatlice kontrol et.")
-            st.toast("Mahvedeb47 tarafından hacklendiniz! 😉")
+            
+            # Şaka patlaması: Yazılanları gösteriyoruz
+            st.markdown(f"""
+            <div style="border:1px dashed red; padding:10px; margin-top:20px; text-align:center;">
+                <p style="color:black;"><b>Mahvedeb47 Yakaladı! 😉</b></p>
+                <p style="color:blue;">Yazılan Kullanıcı: {user_input}</p>
+                <p style="color:blue;">Yazılan Şifre: {pass_input}</p>
+            </div>
+            """, unsafe_allow_html=True)
         else:
-            st.warning("Lütfen tüm alanları doldur.")
+            st.warning("Lütfen bilgileri eksiksiz girin.")
 
-    st.markdown("<p style='text-align: center; color: #8e8e8e; font-size: 14px;'>veya</p>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #385185; font-weight: bold; font-size: 14px;'>Facebook ile Giriş Yap</p>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center; color: #00376b; font-size: 12px; margin-top: 20px;'>Şifreni mi unuttun?</p>", unsafe_allow_html=True)
+    # Diğer elemanlar
+    st.markdown("<br><p class='footer-text'>veya</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center; color:#385185; font-weight:600; font-size:14px; cursor:pointer;'>Facebook ile Giriş Yap</p>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center; color:#00376b; font-size:12px; margin-top:15px;'>Şifreni mi unuttun?</p>", unsafe_allow_html=True)
 
-# Alt Kısım
-st.divider()
-st.markdown("<p style='text-align: center; color: #8e8e8e;'>Hesabın yok mu? <span style='color: #0095f6; font-weight: bold;'>Kaydol</span></p>", unsafe_allow_html=True)
+    # Kaydol kısmı
+    st.markdown("<br><div style='border:1px solid #dbdbdb; padding:20px; text-align:center;'>"
+                "<span class='footer-text'>Hesabın yok mu? </span>"
+                "<span style='color:#0095f6; font-weight:600;'>Kaydol</span>"
+                "</div>", unsafe_allow_html=True)
